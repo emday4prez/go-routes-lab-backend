@@ -69,7 +69,7 @@ func main() {
 	// --- Gin Server Setup ---
 	r := gin.Default()
 
-	// CORS config (same as before)
+	// CORS
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowOrigins = []string{"http://localhost:5173"}
 	corsConfig.AllowHeaders = []string{"Authorization", "Content-Type"}
@@ -81,7 +81,7 @@ func main() {
 			c.JSON(http.StatusOK, gin.H{"message": "Hello from a public endpoint!"})
 		})
 
-		// Apply our new middleware
+		// apply new middleware
 		api.GET("/me", authMiddleware(), func(c *gin.Context) {
 			// Get the "sub" (subject) claim we stored.
 			// This is the user's unique ID in Cognito.
@@ -96,6 +96,12 @@ func main() {
 				"userID":  userID,
 			})
 		})
+
+		api.GET("/lessons/:lessonID", authMiddleware(), func(c *gin.Context) {
+
+			c.JSON(http.StatusOK, gin.H{"message": "Hello from a lesson endpoint!"})
+		})
+
 	}
 
 	port := os.Getenv("API_PORT")
@@ -111,7 +117,7 @@ func main() {
  */
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Get the token string
+		// get token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing Authorization header"})
@@ -124,8 +130,8 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 2. Tell the parser *where* to find the keys.
-		// We point it to our global cache.
+		// tell the parser where to find the keys
+		// point it to global cache
 		jwksURL := fmt.Sprintf("https://cognito-idp.%s.amazonaws.com/%s/.well-known/jwks.json", cognitoRegion, cognitoUserPoolID)
 		keySet, err := jwksCache.Get(c.Request.Context(), jwksURL)
 		if err != nil {
@@ -134,8 +140,8 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 3. Parse and validate the token.
-		// This one call does all the work:
+		// parse and validate the token
+
 		// - Parses the token string
 		// - Finds the correct key from the `keySet` (using the 'kid' header)
 		// - Verifies the cryptographic signature
@@ -147,9 +153,9 @@ func authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 4. Manually validate the "claims"
+		// mnually validate the "claims"
 		// The `jwt.Parse` only verifies the *signature*. We must
-		// verify the *content* (the claims) ourselves.
+		// verify the *content* (the claims) ourselves
 
 		// Check 'iss' (Issuer)
 		// This proves it came from our User Pool
